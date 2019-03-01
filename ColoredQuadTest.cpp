@@ -1,29 +1,20 @@
-#include <iostream>
-
 #define _IRR_STATIC_LIB_
 #include <irrlicht.h>
 #include "../source/Irrlicht/COpenGLExtensionHandler.h"
 
 
 const char *vS = R"(
-#version 330 core
+#version 430 core
 layout(location = 0) in vec4 pos;
-layout(location = 1) in vec4 color;
+layout(location = 1) in vec4 color;   
 
-
-
-
-uniform float red;
-uniform float blue;
-uniform mat4 MVP;
-
-out vec4 vColor;
-
+out vec4 vColor;   
+        
 void main(){
-    gl_Position = MVP * pos;
+    gl_Position = pos;
     vColor = color;
 }
-)";
+    )";
 
 const char *fS = R"(
 #version 330 core
@@ -32,13 +23,12 @@ in vec4 vColor;
 
 layout(location = 0) out vec4 color;
 
-uniform float red;
-uniform float blue;
-
 void main(){
-    color = vec4(red, vColor.yzw);
+    color = vColor;
 }
 )";
+
+
 
 using namespace irr;
 
@@ -54,74 +44,14 @@ public:
         }
         return false;
     }
-
-
 };
 
-class TestCallback : public video::IShaderConstantSetCallBack{
-public:
-    
-    TestCallback() : redLocation(-1), redType(video::ESCT_FLOAT), timer(new irr::ITimer){
-       
-    }
-
-    virtual void PostLink(video::IMaterialRendererServices* services, const video::E_MATERIAL_TYPE& materialType, const core::vector<video::SConstantLocationNamePair>& constants) override {
-        core::vector<video::SConstantLocationNamePair>::const_iterator iter;
-
-        for (iter = constants.begin(); iter < constants.end(); ++iter) {
-            uniforms.push_back(*iter);
-        }
-
-
-    }
-
-    virtual void OnSetConstants(video::IMaterialRendererServices *services, int32_t userData) override {
-        float sinHue = std::sin(timer->getRealTime() * 0.001);
-        float cosHue = std::cos(timer->getRealTime() * 0.001);
-
-
-        core::vector<video::SConstantLocationNamePair>::const_iterator iter;
-        for (iter = uniforms.begin(); iter < uniforms.end(); ++iter) {
-            if (iter->name == "red") {
-                services->setShaderConstant(&sinHue, iter->location, iter->type);
-            
-            }
-            else if (iter->name == "blue") {
-                services->setShaderConstant(&cosHue, iter->location, iter->type);
-            }
-            else if (iter->name == "MVP") {
-                services->setShaderConstant(services->getVideoDriver()->getTransform(video::EPTS_PROJ_VIEW_WORLD).pointer(), iter->location, iter->type);
-            }
-        }
-
-        
-       
-
-    }
-   
-    virtual void OnUnsetMaterial() {}
-
-protected:
-    core::vector<video::SConstantLocationNamePair> uniforms;
-
-    irr::ITimer *timer;
-
-    int32_t redLocation;
-    video::E_SHADER_CONSTANT_TYPE redType;
-
-  
-
-
-};
-
-#include "irr/irrpack.h"
+#include "irr/irrunpack.h"
 struct VertexLayout{
     float pos[3];
     float color[3];
-
 } PACK_STRUCT;
-#include "irr/irrunpack.h"
-
+#include "irr/irrpack.h"
 
 
 video::IGPUMeshBuffer *createTestQuad(video::IVideoDriver *driver) {
@@ -154,8 +84,6 @@ video::IGPUMeshBuffer *createTestQuad(video::IVideoDriver *driver) {
     desc->setVertexAttrBuffer(buf, asset::EVAI_ATTR0, asset::EF_R32G32B32_SFLOAT, sizeof(VertexLayout), offsetof(VertexLayout, pos[0]) + offsets[0]);
     desc->setVertexAttrBuffer(buf, asset::EVAI_ATTR1, asset::EF_R32G32B32_SFLOAT, sizeof(VertexLayout), offsetof(VertexLayout, color[0]) + offsets[0]);
     desc->setIndexBuffer(buf);
-
-  
 
     video::IGPUMeshBuffer *mb = new video::IGPUMeshBuffer();
     
@@ -193,12 +121,12 @@ int main(){
    
 
 	video::IVideoDriver* driver = device->getVideoDriver();
-    TestCallback *cb = new TestCallback();
+
 
     video::SGPUMaterial material;
     material.MaterialType = (video::E_MATERIAL_TYPE)driver->getGPUProgrammingServices()->addHighLevelShaderMaterial(
-        vS, nullptr, nullptr, nullptr, fS, 3, video::EMT_SOLID, cb, 0);
-    cb->drop();
+        vS, nullptr, nullptr, nullptr, fS, 3, video::EMT_SOLID, 0, 0);
+ 
 
     material.BackfaceCulling = false;
 
@@ -207,22 +135,11 @@ int main(){
 
 	scene::ISceneManager* smgr = device->getSceneManager();
 
- 
-    scene::ICameraSceneNode* camera =
-        smgr->addCameraSceneNodeFPS(0, 100.0f, 0.001f);
-
-    camera->setPosition(core::vector3df(-4, 10, -20));
-    camera->setTarget(core::vector3df(0, 0, 0));
-    camera->setNearValue(0.01f);
-    camera->setFarValue(10.0f);
-
-   smgr->setActiveCamera(camera);
 	uint64_t lastFPSTime = 0;
 
 	while(device->run())
 	if (device->isWindowActive()){
 		driver->beginScene(true, true, video::SColor(0,0,0,0) ); //this gets 11k FPS
-
 
         driver->setTransform(video::E4X3TS_WORLD, core::matrix4x3());
         driver->setMaterial(material);
