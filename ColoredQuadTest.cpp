@@ -10,12 +10,17 @@ const char *vS = R"(
 layout(location = 0) in vec4 pos;
 layout(location = 1) in vec4 color;
 
+
+
+
+uniform float red;
+uniform float blue;
 uniform mat4 MVP;
 
 out vec4 vColor;
 
 void main(){
-    gl_Position = pos;
+    gl_Position = MVP * pos;
     vColor = color;
 }
 )";
@@ -27,8 +32,11 @@ in vec4 vColor;
 
 layout(location = 0) out vec4 color;
 
+uniform float red;
+uniform float blue;
+
 void main(){
-    color = vColor;
+    color = vec4(red, vColor.yzw);
 }
 )";
 
@@ -53,25 +61,55 @@ public:
 class TestCallback : public video::IShaderConstantSetCallBack{
 public:
     
-    TestCallback() : mvpLocation(-1), mvpType(video::ESCT_BOOL_VEC3) {}
+    TestCallback() : redLocation(-1), redType(video::ESCT_FLOAT), timer(new irr::ITimer){
+       
+    }
 
     virtual void PostLink(video::IMaterialRendererServices* services, const video::E_MATERIAL_TYPE& materialType, const core::vector<video::SConstantLocationNamePair>& constants) override {
-        mvpLocation = constants[0].location;
-        mvpType = constants[0].type;
+        core::vector<video::SConstantLocationNamePair>::const_iterator iter;
+
+        for (iter = constants.begin(); iter < constants.end(); ++iter) {
+            uniforms.push_back(*iter);
+        }
+
 
     }
 
     virtual void OnSetConstants(video::IMaterialRendererServices *services, int32_t userData) override {
-      //  services->setShaderConstant(services->getVideoDriver()->getTransform(video::EPTS_PROJ_VIEW_WORLD).pointer(),
-       //     mvpLocation, mvpType, 1);
+        float sinHue = std::sin(timer->getRealTime() * 0.001);
+        float cosHue = std::cos(timer->getRealTime() * 0.001);
+
+
+        core::vector<video::SConstantLocationNamePair>::const_iterator iter;
+        for (iter = uniforms.begin(); iter < uniforms.end(); ++iter) {
+            if (iter->name == "red") {
+                services->setShaderConstant(&sinHue, iter->location, iter->type);
+            
+            }
+            else if (iter->name == "blue") {
+                services->setShaderConstant(&cosHue, iter->location, iter->type);
+            }
+            else if (iter->name == "MVP") {
+                services->setShaderConstant(services->getVideoDriver()->getTransform(video::EPTS_PROJ_VIEW_WORLD).pointer(), iter->location, iter->type);
+            }
+        }
+
+        
+       
 
     }
    
     virtual void OnUnsetMaterial() {}
 
 protected:
-    int32_t mvpLocation;
-    video::E_SHADER_CONSTANT_TYPE mvpType;
+    core::vector<video::SConstantLocationNamePair> uniforms;
+
+    irr::ITimer *timer;
+
+    int32_t redLocation;
+    video::E_SHADER_CONSTANT_TYPE redType;
+
+  
 
 
 };
@@ -170,12 +208,15 @@ int main(){
 	scene::ISceneManager* smgr = device->getSceneManager();
 
  
-    scene::ICameraSceneNode *cam = smgr->addCameraSceneNodeFPS(0, 100, 0.001f);
-    cam->setPosition(core::vector3df(10, 10, 0));
-    cam->setTarget(core::vector3df(0, 0, 0));
-    cam->setNearValue(0.01f);
-    cam->setFarValue(10.0f);
+    scene::ICameraSceneNode* camera =
+        smgr->addCameraSceneNodeFPS(0, 100.0f, 0.001f);
 
+    camera->setPosition(core::vector3df(-4, 10, -20));
+    camera->setTarget(core::vector3df(0, 0, 0));
+    camera->setNearValue(0.01f);
+    camera->setFarValue(10.0f);
+
+   smgr->setActiveCamera(camera);
 	uint64_t lastFPSTime = 0;
 
 	while(device->run())
