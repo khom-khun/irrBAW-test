@@ -4,8 +4,7 @@
 #include <cstdio>
 #include "../source/Irrlicht/COpenGLBuffer.h"
 #include "../source/Irrlicht/COpenGLExtensionHandler.h"
-
-#include "createGeom.h"
+#include "../ext/FullScreenTriangle/FullScreenTriangle.h"
 
 using namespace irr;
 using namespace core;
@@ -87,6 +86,8 @@ public:
 
 	virtual void OnSetConstants(video::IMaterialRendererServices* services, int32_t userData)
 	{
+
+		if(mvpUniformLocation != -1)
 		services->setShaderConstant(services->getVideoDriver()->getTransform(video::EPTS_PROJ_VIEW_INVERSE).pointer(), mvpUniformLocation, mvpUniformType, 1);
 	}
 
@@ -174,7 +175,7 @@ int main()
 	scene::ICameraSceneNode* camera =
 		smgr->addCameraSceneNode();//smgr->addCameraSceneNodeFPS(0, 100.0f, 0.001f);
 	
-	camera->setPosition(core::vector3df(-4, -4, -4));
+	camera->setPosition(core::vector3df(-4, 4, -4));
 	camera->setTarget(core::vector3df(0, 0, 0));
 	camera->setNearValue(0.01f);
 	camera->setFarValue(10.0f);
@@ -208,21 +209,23 @@ int main()
 	quad.setTexture(1, normal);
 	quad.setTexture(2, depth);
 
+	asset::ICPUMesh *cpuCube = device->getAssetManager().getGeometryCreator()
+		->createCubeMesh(core::vector3df(1, 1, 1));
+	asset::ICPUMeshBuffer *cpuCubeBuffer = cpuCube->getMeshBuffer(0);
 
-
-
+	video::IGPUMeshBuffer *cubeBuffer = driver->getGPUObjectsFromAssets(&cpuCubeBuffer, (&cpuCubeBuffer)+1).front();
 
 	video::IGPUBuffer *lightDataBuffer = driver->createDeviceLocalGPUBufferOnDedMem(sizeof(LightData_t));
 
 
 	LightData_t light;
-	light.position = core::vector3df_SIMD(5.0f, -10.0f, 0.0f);
+	light.position = core::vector3df_SIMD(-5.0f, 10.0f, 0.0f);
 
 	driver->updateBufferRangeViaStagingBuffer(lightDataBuffer,
 		0, sizeof(LightData_t), &light);
 
 
-
+	video::IGPUMeshBuffer *screenBuf = ext::FullScreenTriangle::createFullScreenTriangle(driver);
 	//! Since our cursor will be enslaved, there will be no way to close the window
 	//! So we listen for the "Q" key being pressed and exit the application
 	MyEventReceiver receiver;
@@ -250,11 +253,10 @@ int main()
 			driver->clearColorBuffer(video::E_FBO_ATTACHMENT_POINT::EFAP_COLOR_ATTACHMENT0, clear);
 			driver->clearZBuffer();
 			//
+			driver->setTransform(video::E4X3TS_WORLD, core::matrix4x3());
+			driver->setMaterial(material);
+			driver->drawMeshBuffer(cubeBuffer);
 
-            driver->setTransform(video::E4X3TS_WORLD,core::matrix4x3());
-            driver->setMaterial(material);
-            driver->drawMeshBuffer(kosu::cube(driver));
-        
 			//
 			driver->setRenderTarget(0);
 
@@ -265,7 +267,7 @@ int main()
 			);
 
 			driver->setMaterial(quad);
-			driver->drawMeshBuffer(kosu::screenQuad(driver));
+			driver->drawMeshBuffer(screenBuf);
 
 		}
 

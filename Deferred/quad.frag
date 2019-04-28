@@ -30,13 +30,13 @@ void main()
     
     vec3 norm = normalize(texture(normal, tCoord).xyz);
     vec3 lightDir = normalize(light.pos - location).xyz;
-    float diff = max(dot(norm, lightDir), 0.0);
 
     vec3 color = texture(albedo, tCoord).xyz;
     
-    float ambientStr = 0.1;
-    vec3 result = color * (diff + 0.2);
 
+    float ambient = 0.2;
+    float diffuse = 0.8;
+    float cos_theta_term = max(dot(norm, lightDir), 0.0);
 
-    outcolor = vec4(result, 1.0);
+    outcolor = vec4((ambient + diffuse * cos_theta_term) * color, 1.0);
 }
